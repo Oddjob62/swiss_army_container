@@ -7,7 +7,7 @@ import time
 from datetime import timedelta, datetime, timezone
 from fastapi import FastAPI, HTTPException
 from . import database, models, schemas
-import fastapi_notes.services.db_services as db_services
+import swiss_army_container.services.db_services as db_services
 from cryptography.hazmat.primitives import hashes
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend

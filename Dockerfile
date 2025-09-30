@@ -17,6 +17,6 @@ RUN apt-get update && \
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . fastapi_notes/
+COPY . swiss_army_container/
 
-CMD ["uvicorn", "fastapi_notes.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "swiss_army_container.main:app", "--host", "0.0.0.0", "--port", "8000"]

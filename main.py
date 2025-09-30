@@ -1,21 +1,21 @@
 import os
-from fastapi import FastAPI, HTTPException
-from . import database, models, schemas
 import subprocess
 import re
 import ssl
 import socket
+import time
+from datetime import timedelta, datetime, timezone
+from fastapi import FastAPI, HTTPException
+from . import database, models, schemas
+import fastapi_notes.services.db_services as db_services
 from cryptography.hazmat.primitives import hashes
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-import time
-from datetime import timedelta, datetime, timezone
+
+SAVE_TO_DB = os.getenv("SAVE_TO_DB", "false").lower() == "true"
 
 start_time = time.time()
 app = FastAPI()
-
-# Create table if it doesn’t exist
-models.Base.metadata.create_all(bind=database.engine)
 
 # Routes
 @app.post("/ping", response_model=schemas.CommandResult)
@@ -23,8 +23,14 @@ def run_ping(target: str):
     try:
         safe_target = validate_target(target)
         output = run_command(["ping", "-q", "-c", "4", safe_target], timeout=10)
-        save_result("ping", target, output)
-        return {"command": "ping", "target": target, "output": output}
+        result = {
+            "command": "ping",
+            "target": target,
+            "output": output,
+            "created_at": datetime.now(timezone.utc)
+        }
+        db_services.save_result(result)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     except ValueError as e:
@@ -37,8 +43,14 @@ def run_curl(target: str):
     try:
         safe_target = validate_target(target)
         output = run_command(["curl", "-s", safe_target], timeout=10)
-        save_result("curl", target, output)
-        return {"command": "curl", "target": target, "output": output}
+        result = {
+            "command": "curl",
+            "target": target,
+            "output": output,
+            "created_at": datetime.now(timezone.utc)
+        }
+        db_services.save_result(result)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     except ValueError as e:
@@ -105,14 +117,6 @@ def status():
             "namespace": os.getenv("POD_NAMESPACE", "unknown"),
             "node_name": os.getenv("NODE_NAME", "unknown")
         }
-
-def save_result(command: str, target: str, output: str):
-    db = database.SessionLocal()
-    db_result = models.CommandResult(command=command, target=target, output=output)
-    db.add(db_result)
-    db.commit()
-    db.refresh(db_result)
-    db.close()
 
 def validate_target(target: str):
     # allow IPv4, IPv6, or simple hostnames
